@@ -12,6 +12,14 @@
       ansible.builtin.command: docker --version
       changed_when: false
 
+    - name: Authenticate Azure managed identity
+      ansible.builtin.command: az login --identity --output none
+      changed_when: false
+
+    - name: Authenticate Docker with Azure Container Registry
+      ansible.builtin.command: az acr login --name sliitdevopsacr2026
+      changed_when: false
+
     - name: Pull application image from ACR
       ansible.builtin.command:
         argv:
