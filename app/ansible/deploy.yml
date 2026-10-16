@@ -1,0 +1,57 @@
+---
+- name: Deploy DevOps Dashboard to Azure VM
+  hosts: app_servers
+  become: true
+
+  vars:
+    container_name: devops-dashboard
+    container_image: "{{ image_name }}"
+
+  tasks:
+    - name: Verify Docker is installed
+      ansible.builtin.command: docker --version
+      changed_when: false
+
+    - name: Pull application image from ACR
+      ansible.builtin.command:
+        argv:
+          - docker
+          - pull
+          - "{{ container_image }}"
+      register: docker_pull
+      changed_when: "'Downloaded newer image' in docker_pull.stdout"
+
+    - name: Remove previous application container
+      ansible.builtin.command:
+        argv:
+          - docker
+          - rm
+          - -f
+          - "{{ container_name }}"
+      register: remove_container
+      failed_when: remove_container.rc != 0 and 'No such container' not in remove_container.stderr
+      changed_when: remove_container.rc == 0
+
+    - name: Start application container
+      ansible.builtin.command:
+        argv:
+          - docker
+          - run
+          - -d
+          - --name
+          - "{{ container_name }}"
+          - --restart
+          - unless-stopped
+          - -p
+          - "80:80"
+          - "{{ container_image }}"
+
+    - name: Verify application responds
+      ansible.builtin.uri:
+        url: http://127.0.0.1/
+        status_code: 200
+        return_content: true
+      register: application_response
+      retries: 10
+      delay: 3
+      until: application_response.status == 200

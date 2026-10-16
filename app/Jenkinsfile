@@ -1,0 +1,77 @@
+pipeline {
+    agent any
+
+    environment {
+        ACR_NAME = 'sliitdevopsacr2026'
+        ACR_SERVER = 'sliitdevopsacr2026.azurecr.io'
+        IMAGE_NAME = 'devops-dashboard'
+        ANSIBLE_HOST_KEY_CHECKING = 'True'
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
+
+        stage('Validate Application') {
+            steps {
+                sh '''
+                    test -f app/index.html
+                    test -f app/Dockerfile
+                    test -f ansible/deploy.yml
+                    grep -q "DevOps Deployment Dashboard" app/index.html
+                '''
+            }
+        }
+
+        stage('Build Docker Image') {
+            steps {
+                sh '''
+                    docker build \
+                      -t ${ACR_SERVER}/${IMAGE_NAME}:${BUILD_NUMBER} \
+                      ./app
+                '''
+            }
+        }
+
+        stage('Login to Azure ACR') {
+            steps {
+                sh '''
+                    az login --identity --output none
+                    az acr login --name ${ACR_NAME}
+                '''
+            }
+        }
+
+        stage('Push Docker Image') {
+            steps {
+                sh '''
+                    docker push \
+                      ${ACR_SERVER}/${IMAGE_NAME}:${BUILD_NUMBER}
+                '''
+            }
+        }
+
+        stage('Deploy with Ansible') {
+            steps {
+                sh '''
+                    ansible-playbook \
+                      -i /home/azureuser/devops-assignment/ansible/inventory.ini \
+                      ansible/deploy.yml \
+                      --extra-vars "image_name=${ACR_SERVER}/${IMAGE_NAME}:${BUILD_NUMBER}"
+                '''
+            }
+        }
+    }
+
+    post {
+        success {
+            echo 'Application deployed successfully!'
+        }
+        failure {
+            echo 'Pipeline failed. Check Jenkins console output.'
+        }
+    }
+}
