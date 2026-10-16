@@ -20,7 +20,7 @@ pipeline {
                 sh '''
                     test -f app/index.html
                     test -f app/Dockerfile
-                    test -f ansible/deploy.yml
+                    test -f app/ansible/deploy.yml
                     grep -q "DevOps Deployment Dashboard" app/index.html
                 '''
             }
@@ -58,9 +58,9 @@ pipeline {
             steps {
                 sh '''
                     ansible-playbook \
-                      -i /home/azureuser/devops-assignment/ansible/inventory.ini \
-                      ansible/deploy.yml \
-                      --extra-vars "image_name=${ACR_SERVER}/${IMAGE_NAME}:${BUILD_NUMBER}"
+                    -i /var/lib/jenkins/ansible-inventory.ini \
+                    app/ansible/deploy.yml \
+                    --extra-vars "image_name=${ACR_SERVER}/${IMAGE_NAME}:${BUILD_NUMBER}"
                 '''
             }
         }
